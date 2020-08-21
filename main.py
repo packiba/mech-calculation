@@ -1,360 +1,353 @@
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, Color
 from openpyxl.styles.borders import Border, Side
+import numpy as np
 import re
-from prepareData import run
+from data_preparation import run
+from span import Span
+from support import Support
 
-def makeListOpor(listProletov: list):
+
+def make_list(spans_list: list):
     k = 0
-    listOpor = []
-    listKoncIndex = []
-    for x, y in listProletov:
+    supports_list = []
+    end_index_list = []
+    for x, y in spans_list:
         if k != 0 and k != x:
-            listKoncIndex.append(int(k))
+            end_index_list.append(int(k))
         if x != k:
-            listOpor.append(int(x))
-            listKoncIndex.append(int(x))
-        listOpor.append(int(y))
+            supports_list.append(int(x))
+            end_index_list.append(int(x))
+        supports_list.append(int(y))
         k = y
-    listKoncIndex.append(int(k))
-    return (listOpor, listKoncIndex)
+    end_index_list.append(int(k))
+    return (supports_list, end_index_list)
 
-def flag_konc(op, list):
-    for item in list:
-        if item == op:
+
+def end_flag(support, arr):
+    for item in arr:
+        if item == support:
             return True
     return False
 
-def go(fn):
-    from prolet import prolet
-    from opora import opora
-    # открываем файл и берем текущий лист
-    # fn1 = input('Enter file name: ')
-    # fn = fn1 + '.xlsx'
-    wb = load_workbook(fn)
-    # подготавливаем список из файла
-    run(fn, wb)
-    # загружаем отформатированный список Excel
-    wb = load_workbook(fn)
-    ws = wb['отформатированный']
-    # номер КТП
-    val_A2 = ws['A2'].value
-    Ntp = int(re.findall(r'\d+', val_A2)[0])
-    # номер линии
-    val_B2 = ws['B2'].value
-    Nlin = int(re.findall(r'\d+', val_B2)[0])
-    # список пролётов
-    prolety = []
-    col_C = ws['C']
-    for item in col_C:
-        if item.value is None:
-            break
-        mFormat = re.findall(r'\d+', item.value)
-        if mFormat:
-            prolety.append(mFormat)
 
-    # список опор (вызываем функцию makeListOpor)
-    opory = makeListOpor(prolety)[0]
-    koncOpory = makeListOpor(prolety)[1]
+# открываем файл и берем текущий лист
+filename = '1268 3'
+full_filename = filename + '.xlsx'
+workbook = load_workbook(full_filename)
 
-    kolOpor = len(makeListOpor(prolety)[0])
-    kolProletov = len(prolety)
+# подготавливаем список из файла
+run(full_filename, workbook)
 
-    marki_kol = []
-    dliny = []
-    svet = []
-    for i in range(0, kolProletov):
-        d = ws.cell(row=i + 2, column=4)
-        e = ws.cell(row=i + 2, column=5)
-        f = ws.cell(row=i + 2, column=6)
-        marki_kol.append(d.value)
-        dliny.append(round(e.value))
-        svet.append(f.value)
+# загружаем отформатированный список Excel
+workbook = load_workbook(full_filename)
+formatted_sheet = workbook['отформатированный']
 
-    # создаем список с объектами пролетов
-    proList = []
-    for mark, prol, dlin, sv in zip(marki_kol, prolety, dliny, svet):
-        flag = False
-        if sv == 'фонарка':
-            flag = True
-        p = prolet(mark, prol, dlin, flag)
-        proList.append(p)
+# номер КТП (ST - substation transformer)
+val_A2 = formatted_sheet['A2'].value
+ST_number = int(re.findall(r'\d+', val_A2)[0])
 
-    # создаём список с объектами опор
-    oporList = []
-    vrem = None
-    for my_op in opory:
-        for prolet in proList:
-            if flag_konc(my_op, koncOpory):
-                if int(prolet.op1) == my_op or int(prolet.op2) == my_op:
-                    op = opora(my_op, prolet)
-                    oporList.append(op)
-                    break
-            else:
-                if int(prolet.op2) == my_op:
-                    vrem = prolet
-                    continue
-                elif int(prolet.op1) == my_op:
-                    op = opora(my_op, vrem, prolet)
-                    oporList.append(op)
-                    break
+# номер линии
+val_B2 = formatted_sheet['B2'].value
+line_number = int(re.findall(r'\d+', val_B2)[0])
 
+# список пролётов
+list_of_span_support_numbers = []
+col_C = formatted_sheet['C']
+for item in col_C:
+    if item.value is None:
+        break
+    mFormat = re.findall(r'\d+', item.value)
+    if mFormat:
+        list_of_span_support_numbers.append(mFormat)
 
-    # функции форматирования ячеек
-    def cell_border(row, col, side):
-        my_ws.cell(row=row, column=col).border = my_ws.cell(row=row, column=col).border + side
+# список опор (вызываем функцию make_supports_list)
+list_of_supports = make_list(list_of_span_support_numbers)[0]
+end_supports_list = make_list(list_of_span_support_numbers)[1]
+
+number_of_supports = len(list_of_supports)
+number_of_spans = len(list_of_span_support_numbers)
+
+list_of_marks = []
+list_of_length = []
+list_of_lamps = []
+for i in range(0, number_of_spans):
+    d = formatted_sheet.cell(row=i + 1, column=4)
+    e = formatted_sheet.cell(row=i + 1, column=5)
+    font_big = formatted_sheet.cell(row=i + 2, column=6)
+    list_of_marks.append(d.value)
+    list_of_length.append(round(e.value))
+    list_of_lamps.append(font_big.value)
+
+# создаем список с объектами пролетов
+spans = []
+for mark, span, length, lamp in zip(list_of_marks, list_of_span_support_numbers, list_of_length, list_of_lamps):
+    flag = False
+    if lamp == 'фонарка':
+        flag = True
+    span = Span(mark, span, length, flag)
+    spans.append(span)
+
+# создаём список с объектами опор
+supports = []
+temp_span = None
+for cur_support in list_of_supports:
+    for cur_span in spans:
+        if end_flag(cur_support, end_supports_list):
+            if int(cur_span.span_support1_number) == cur_support or int(cur_span.span_support2_number) == cur_support:
+                support = Support(cur_support, cur_span)
+                supports.append(support)
+                break
+        else:
+            if int(cur_span.span_support2_number) == cur_support:
+                temp_span = cur_span
+                continue
+            elif int(cur_span.span_support1_number) == cur_support:
+                support = Support(cur_support, temp_span, cur_span)
+                supports.append(support)
+                break
 
 
-    def set_cell_height(row, height):
-        rd = my_ws.row_dimensions[row]  # get dimension for row 3
-        rd.height = height
+# функции форматирования ячеек
+def cell_border(row, col, side):
+    my_ws.cell(row=row, column=col).border = my_ws.cell(row=row, column=col).border + side
 
 
-    def set_cell_width(col, width):
-        rd = my_ws.column_dimensions[col]  # get dimension for row 3
-        rd.width = width
+def set_cell_height(row, height):
+    rd = my_ws.row_dimensions[row]  # get dimension for row 3
+    rd.height = height
 
 
-    def mergeCellsOp(first_row, opora):
-        delt1 = 0
-        delt2 = 0
-        if opora.prolet1.svet is True:
-            delt1 = 1
-        nRow = 1 + delt1
-        if opora.prolet2:
-            if opora.prolet2.svet is True:
-                delt2 = 1
-            nRow = nRow + 2 + delt2
-
-        def operation(row, col):
-            my_ws.merge_cells(start_row=row, start_column=col,
-                              end_row=row + nRow, end_column=col)
-
-        def set_border():
-            for row in range(nRow + 1):
-                cell_border(first_row + row, 1, leftB)
-                cell_border(first_row + row, 7, rightB)
-                cell_border(first_row + row, 9, rightB)
-                cell_border(first_row + row, 13, rightB)
-                cell_border(first_row + row, 15, rightB)
-                cell_border(first_row + row, 18, rightB)
-                cell_border(first_row + row, 20, rightB)
-                cell_border(first_row + row, 25, rightB)
-                cell_border(first_row + row, 26, rightB)
-                cell_border(first_row + row, 27, rightB)
-
-            for col in range(27):
-                cell_border(first_row, col + 1, topB)
-                cell_border(first_row + nRow, col + 1, bottomB)
-
-        operation(first_row, 1)
-        operation(first_row, 8)
-        operation(first_row, 9)
-        operation(first_row, 14)
-        operation(first_row, 15)
-        operation(first_row, 19)
-        operation(first_row, 20)
-        operation(first_row, 25)
-        operation(first_row, 26)
-        operation(first_row, 27)
-
-        set_border()
+def set_cell_width(col, width):
+    rd = my_ws.column_dimensions[col]  # get dimension for row 3
+    rd.width = width
 
 
-    def mergeCellsPr(first_row, prolet):
-        if prolet:
-            nRow = len(prolet.yar) - 1
+def merge_cells_of_support(first_row, support):
+    offset1 = 0
+    offset2 = 0
+    if support.span1.lamp is True:
+        offset1 = 1
+    nRow = 1 + offset1
+    if support.span2:
+        if support.span2.lamp is True:
+            offset2 = 1
+        nRow = nRow + 2 + offset2
 
-        def operation(row, col):
-            my_ws.merge_cells(start_row=row, start_column=col, end_row=row + nRow, end_column=col)
+    def merge_cells(row, col):
+        my_ws.merge_cells(start_row=row, start_column=col,
+                          end_row=row + nRow, end_column=col)
 
-        def set_border():
-            for row in range(nRow + 1):
-                cell_border(first_row + row, 2, rightB)
-                cell_border(first_row + row, 21, rightB)
-                cell_border(first_row + row, 22, rightB)
-                cell_border(first_row + row, 23, rightB)
-                cell_border(first_row + row, 24, rightB)
+    def set_border():
+        for row in range(nRow + 1):
+            cell_border(first_row + row, 1, left_border)
+            cell_border(first_row + row, 7, right_border)
+            cell_border(first_row + row, 9, right_border)
+            cell_border(first_row + row, 13, right_border)
+            cell_border(first_row + row, 15, right_border)
+            cell_border(first_row + row, 18, right_border)
+            cell_border(first_row + row, 20, right_border)
+            cell_border(first_row + row, 25, right_border)
+            cell_border(first_row + row, 26, right_border)
+            cell_border(first_row + row, 27, right_border)
 
-        operation(first_row, 2)
-        operation(first_row, 21)
-        operation(first_row, 22)
-        operation(first_row, 23)
-        operation(first_row, 24)
+        for col in range(27):
+            cell_border(first_row, col + 1, top_border)
+            cell_border(first_row + nRow, col + 1, bottom_border)
 
-        set_border()
+    merge_cells(first_row, 1)
+    merge_cells(first_row, 8)
+    merge_cells(first_row, 9)
+    merge_cells(first_row, 14)
+    merge_cells(first_row, 15)
+    merge_cells(first_row, 19)
+    merge_cells(first_row, 20)
+    merge_cells(first_row, 25)
+    merge_cells(first_row, 26)
+    merge_cells(first_row, 27)
 
-
-    def formatCell(r, c, v):
-        my_ws.cell(row=r, column=c, value=v).alignment = al
-        my_ws.cell(row=r, column=c, height=9).font = f
-
-
-    # функции вписывания данных в лист Excel
-    def write_yarusy(row, yar):
-        set_cell_height(row, 9)
-        my_ws.cell(row=row, column=3, value=yar.marka).alignment = al
-        my_ws.cell(row=row, column=3).font = f2
-        my_ws.cell(row=row, column=4, value=yar.Nprov).alignment = al
-        my_ws.cell(row=row, column=4).font = f2
-        my_ws.cell(row=row, column=5, value=yar.diam).alignment = al
-        my_ws.cell(row=row, column=5).font = f2
-        my_ws.cell(row=row, column=6, value=yar.ves).alignment = al
-        my_ws.cell(row=row, column=6).font = f2
-        my_ws.cell(row=row, column=7, value=yar.h).alignment = al
-        my_ws.cell(row=row, column=7).font = f2
-
-
-    def write_prolety(row, prolet):
-        my_ws.cell(row=row, column=2, value=prolet.dlina).alignment = al
-        my_ws.cell(row=row, column=2).font = f
-
-        def oper(ind):
-            my_ws.cell(row=row + ind, column=10, value=prolet.Gc[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=10).font = f2
-            my_ws.cell(row=row + ind, column=11, value=prolet.Pm[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=11).font = f2
-            my_ws.cell(row=row + ind, column=12, value=prolet.Gmp[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=12).font = f2
-            my_ws.cell(row=row + ind, column=13, value=prolet.Qm[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=13).font = f2
-            my_ws.cell(row=row + ind, column=16, value=prolet.M12[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=16).font = f2
-            my_ws.cell(row=row + ind, column=17, value=prolet.M13[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=17).font = f2
-            my_ws.cell(row=row + ind, column=18, value=prolet.M134[ind]).alignment = al
-            my_ws.cell(row=row + ind, column=18).font = f2
-
-        for i in range(len(prolet.yar)):
-            oper(i)
+    set_border()
 
 
-    def write_opory(row, opora):
-        my_ws.cell(row=row, column=1, value=opora.nomer).alignment = al
-        my_ws.cell(row=row, column=1).font = f
-        my_ws.cell(row=row, column=8, value=opora.Nsvet).alignment = al
-        my_ws.cell(row=row, column=8).font = f
-        my_ws.cell(row=row, column=9, value=opora.hsvet).alignment = al
-        my_ws.cell(row=row, column=9).font = f
-        my_ws.cell(row=row, column=14, value=opora.Wm).alignment = al
-        my_ws.cell(row=row, column=14).font = f
-        my_ws.cell(row=row, column=15, value=opora.Wg).alignment = al
-        my_ws.cell(row=row, column=15).font = f
-        my_ws.cell(row=row, column=19, value=opora.MWm).alignment = al
-        my_ws.cell(row=row, column=19).font = f
-        my_ws.cell(row=row, column=20, value=opora.MWm).alignment = al
-        my_ws.cell(row=row, column=20).font = f
-        my_ws.cell(row=row, column=21, value=opora.m1[0]).alignment = al
-        my_ws.cell(row=row, column=21).font = f
-        my_ws.cell(row=row, column=22, value=opora.m2[0]).alignment = al
-        my_ws.cell(row=row, column=22).font = f
-        my_ws.cell(row=row, column=23, value=opora.m3[0]).alignment = al
-        my_ws.cell(row=row, column=23).font = f
-        my_ws.cell(row=row, column=24, value=opora.maxMoments[0]).alignment = al
-        my_ws.cell(row=row, column=24).font = f
-        if opora.prolet2 is not None:
-            dRow = len(opora.prolet1.yar)
-            my_ws.cell(row=row + dRow, column=21, value=opora.m1[1]).alignment = al
-            my_ws.cell(row=row + dRow, column=21).font = f
-            my_ws.cell(row=row + dRow, column=22, value=opora.m2[1]).alignment = al
-            my_ws.cell(row=row + dRow, column=22).font = f
-            my_ws.cell(row=row + dRow, column=23, value=opora.m3[1]).alignment = al
-            my_ws.cell(row=row + dRow, column=23).font = f
-            my_ws.cell(row=row + dRow, column=24, value=opora.maxMoments[1]).alignment = al
-            my_ws.cell(row=row + dRow, column=24).font = f
+def mergeCellsPr(first_row, span):
+    if span:
+        nRow = len(span.linelevels) - 1
 
-        my_ws.cell(row=row, column=25, value=opora.maxMomOp).alignment = al
-        my_ws.cell(row=row, column=25).font = f
-        my_ws.cell(row=row, column=26, value=opora.tipStoiki).alignment = al
-        my_ws.cell(row=row, column=26).font = f
-        my_ws.cell(row=row, column=27, value=opora.nesSposobnOp).alignment = al
-        my_ws.cell(row=row, column=27).font = f
+    def operation(row, col):
+        my_ws.merge_cells(start_row=row, start_column=col, end_row=row + nRow, end_column=col)
+
+    def set_border():
+        for row in range(nRow + 1):
+            cell_border(first_row + row, 2, right_border)
+            cell_border(first_row + row, 21, right_border)
+            cell_border(first_row + row, 22, right_border)
+            cell_border(first_row + row, 23, right_border)
+            cell_border(first_row + row, 24, right_border)
+
+    operation(first_row, 2)
+    operation(first_row, 21)
+    operation(first_row, 22)
+    operation(first_row, 23)
+    operation(first_row, 24)
+
+    set_border()
 
 
-    def write_prolety2(row, prolet):
-        write_prolety(row, prolet)
-        Nyar = len(prolet.yar)
-        y = Nyar - 1
-        while y > 0:
-            write_yarusy(row, prolet.yar[y])
-            y -= 1
-            row += 1
-        write_yarusy(row, prolet.yar[0])
-        return row
+def formatCell(r, c, v):
+    my_ws.cell(row=r, column=c, value=v).alignment = alignment
+    my_ws.cell(row=r, column=c, height=9).font = font_big
 
 
-    # создаем лист в Excel
-    title = 'КТП-' + str(Ntp) + ' Л' + str(Nlin)
-    my_ws = wb.create_sheet("расчёт", 0)
-    file_name = title + '.xlsx'
+# функции вписывания данных в лист Excel
+def write_line_levels(row, line_level):
+    set_cell_height(row, 9)
+    my_ws.cell(row=row, column=3, value=line_level.wire_mark).alignment = alignment
+    my_ws.cell(row=row, column=3).font = font_small
+    my_ws.cell(row=row, column=4, value=line_level.wires_amount).alignment = alignment
+    my_ws.cell(row=row, column=4).font = font_small
+    my_ws.cell(row=row, column=5, value=line_level.diameter).alignment = alignment
+    my_ws.cell(row=row, column=5).font = font_small
+    my_ws.cell(row=row, column=6, value=line_level.weight).alignment = alignment
+    my_ws.cell(row=row, column=6).font = font_small
+    my_ws.cell(row=row, column=7, value=line_level.level_height).alignment = alignment
+    my_ws.cell(row=row, column=7).font = font_small
 
-    # наши стили выравнивания и шрифт ячеек
-    al = Alignment(horizontal="center", vertical="center")
-    f = Font(name='Microsoft Sans Serif', size=8)
-    f2 = Font(name='Microsoft Sans Serif', size=7)
 
-    leftB = Border(left=Side(style='thin', color=Color("969696")))
-    rightB = Border(right=Side(style='thin', color=Color("969696")))
-    topB = Border(top=Side(style='thin', color=Color("969696")))
-    bottomB = Border(bottom=Side(style='thin', color=Color("969696")))
+def write_spans(row, span):
+    my_ws.cell(row=row, column=2, value=span.length).alignment = alignment
+    my_ws.cell(row=row, column=2).font = font_big
 
-    # вписываем в ячейки Excel
-    my_ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=27)
-    my_ws['A1'] = 'КТП-' + str(Ntp) + ' Л' + str(Nlin)
-    my_ws['A1'].font = Font(name='Microsoft Sans Serif', size=11)
+    def align(index):
+        my_ws.cell(row=row + index, column=10, value=span.Gc[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=10).font = font_small
+        my_ws.cell(row=row + index, column=11, value=span.Pm[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=11).font = font_small
+        my_ws.cell(row=row + index, column=12, value=span.Gmp[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=12).font = font_small
+        my_ws.cell(row=row + index, column=13, value=span.Qm[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=13).font = font_small
+        my_ws.cell(row=row + index, column=16, value=span.M12[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=16).font = font_small
+        my_ws.cell(row=row + index, column=17, value=span.M13[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=17).font = font_small
+        my_ws.cell(row=row + index, column=18, value=span.M134[index]).alignment = alignment
+        my_ws.cell(row=row + index, column=18).font = font_small
 
-    # формируем ширину столбцов
-    col_names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-                 'V', 'W', 'X', 'Y', 'Z', 'AA']
-    col_width = [4.43, 6.86, 7.71, 5.57, 6.86, 7.14, 8.43, 7.14, 7, 7.57, 8.43, 7, 8.71, 8.43, 8.43, 8.43, 8.43, 8.43,
-                 8.43, 8.14, 8.43, 8.43, 11.29, 9.43, 8.43, 6.57, 9.43]
-    table_width = dict(zip(col_names, col_width))
-    for key, value in table_width.items():
-        set_cell_width(key, value + 0.72)
+    for index in range(len(span.linelevels)):
+        align(index)
 
-    # делаем цикл по опорам
-    # заполняем таблицу с этого номера
-    cur_row = 2
 
-    for opora in oporList:
-        # делаем расчеты
-        for y in opora.prolet1.yar:
-            opora.prolet1.calc_prolety(y)
-        if opora.prolet2:
-            for y in opora.prolet2.yar:
-                opora.prolet1.calc_prolety(y)
-        opora.calc()
+def write_supports(row, support):
+    my_ws.cell(row=row, column=1, value=support.number).alignment = alignment
+    my_ws.cell(row=row, column=1).font = font_big
+    my_ws.cell(row=row, column=8, value=support.lampsAmount).alignment = alignment
+    my_ws.cell(row=row, column=8).font = font_big
+    my_ws.cell(row=row, column=9, value=support.lampHeight).alignment = alignment
+    my_ws.cell(row=row, column=9).font = font_big
+    my_ws.cell(row=row, column=14, value=support.Wm).alignment = alignment
+    my_ws.cell(row=row, column=14).font = font_big
+    my_ws.cell(row=row, column=15, value=support.Wg).alignment = alignment
+    my_ws.cell(row=row, column=15).font = font_big
+    my_ws.cell(row=row, column=19, value=support.MWm).alignment = alignment
+    my_ws.cell(row=row, column=19).font = font_big
+    my_ws.cell(row=row, column=20, value=support.MWm).alignment = alignment
+    my_ws.cell(row=row, column=20).font = font_big
+    my_ws.cell(row=row, column=21, value=support.m1[0]).alignment = alignment
+    my_ws.cell(row=row, column=21).font = font_big
+    my_ws.cell(row=row, column=22, value=support.m2[0]).alignment = alignment
+    my_ws.cell(row=row, column=22).font = font_big
+    my_ws.cell(row=row, column=23, value=support.m3[0]).alignment = alignment
+    my_ws.cell(row=row, column=23).font = font_big
+    my_ws.cell(row=row, column=24, value=support.maxMoments[0]).alignment = alignment
+    my_ws.cell(row=row, column=24).font = font_big
+    if support.span2 is not None:
+        dRow = len(support.span1.linelevels)
+        my_ws.cell(row=row + dRow, column=21, value=support.m1[1]).alignment = alignment
+        my_ws.cell(row=row + dRow, column=21).font = font_big
+        my_ws.cell(row=row + dRow, column=22, value=support.m2[1]).alignment = alignment
+        my_ws.cell(row=row + dRow, column=22).font = font_big
+        my_ws.cell(row=row + dRow, column=23, value=support.m3[1]).alignment = alignment
+        my_ws.cell(row=row + dRow, column=23).font = font_big
+        my_ws.cell(row=row + dRow, column=24, value=support.maxMoments[1]).alignment = alignment
+        my_ws.cell(row=row + dRow, column=24).font = font_big
 
-        # вписываем
-        mergeCellsOp(cur_row, opora)
-        write_opory(cur_row, opora)
-        mergeCellsPr(cur_row, opora.prolet1)
+    my_ws.cell(row=row, column=25, value=support.maxMoment).alignment = alignment
+    my_ws.cell(row=row, column=25).font = font_big
+    my_ws.cell(row=row, column=26, value=support.supportType).alignment = alignment
+    my_ws.cell(row=row, column=26).font = font_big
+    my_ws.cell(row=row, column=27, value=support.loadCapacity).alignment = alignment
+    my_ws.cell(row=row, column=27).font = font_big
 
-        cur_row = write_prolety2(cur_row, opora.prolet1)
-        if opora.prolet2:
-            mergeCellsPr(cur_row + 1, opora.prolet2)
-            cur_row = write_prolety2(cur_row + 1, opora.prolet2)
-        cur_row += 1
 
-    for col in range(27):
-        cell_border(cur_row, col + 1, topB)
+def write_spans2(row, span):
+    write_spans(row, span)
+    number_of_linelevels = len(span.linelevels)
+    y = number_of_linelevels - 1
+    while y > 0:
+        write_line_levels(row, span.linelevels[y])
+        y -= 1
+        row += 1
+    write_line_levels(row, span.linelevels[0])
+    return row
 
-        # opora = oporList[2]
-        # for y in opora.prolet1.yar:
-        #     opora.prolet1.calc_prolety(y)
-        #     if opora.prolet2 != None:
-        #         for y in opora.prolet2.yar:
-        #             opora.prolet1.calc_prolety(y)
-        #     opora.calc()
-        #
-        #  # вписываем
-        # mergeCellsOp(cur_row, opora)
-        # write_opory(cur_row, opora)
-        # mergeCellsPr(cur_row, opora.prolet1)
-        # cur_row = write_prolety2(cur_row, opora.prolet1)
-        # if opora.prolet2 != None:
-        #     mergeCellsPr(cur_row + 1, opora.prolet2)
-        #     cur_row = write_prolety2(cur_row + 1, opora.prolet2)
 
-    wb.save(fn)
-    print('обработан файл', fn)
+# создаем лист в Excel
+title = 'КТП-' + str(ST_number) + ' Л' + str(line_number)
+my_ws = workbook.create_sheet("расчёт", 0)
+file_name = title + '.xlsx'
+
+# наши стили выравнивания и шрифт ячеек
+alignment = Alignment(horizontal="center", vertical="center")
+font_big = Font(name='Microsoft Sans Serif', size=8)
+font_small = Font(name='Microsoft Sans Serif', size=7)
+
+left_border = Border(left=Side(style='thin', color=Color("969696")))
+right_border = Border(right=Side(style='thin', color=Color("969696")))
+top_border = Border(top=Side(style='thin', color=Color("969696")))
+bottom_border = Border(bottom=Side(style='thin', color=Color("969696")))
+
+# вписываем в ячейки Excel
+my_ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=27)
+my_ws['A1'] = 'КТП-' + str(ST_number) + ' Л' + str(line_number)
+my_ws['A1'].font = Font(name='Microsoft Sans Serif', size=11)
+
+# формируем ширину столбцов
+col_names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
+             'R', 'S', 'T', 'U',
+             'V', 'W', 'X', 'Y', 'Z', 'AA']
+col_width = [4.43, 6.86, 7.71, 5.57, 6.86, 7.14, 8.43, 7.14, 7, 7.57, 8.43, 7, 8.71, 8.43, 8.43,
+             8.43, 8.43, 8.43,
+             8.43, 8.14, 8.43, 8.43, 11.29, 9.43, 8.43, 6.57, 9.43]
+table_width = dict(zip(col_names, col_width))
+for key, value in table_width.items():
+    set_cell_width(key, value + 0.72)
+
+# делаем цикл по опорам
+# заполняем таблицу с этого номера
+cur_row = 2
+
+for support in supports:
+    # делаем расчеты
+    for linelevel in support.span1.linelevels:
+        support.span1.calculate_parameters(linelevel)
+    if support.span2:
+        for linelevel in support.span2.linelevels:
+            support.span1.calculate_parameters(linelevel)
+    support.calculate_parameters()
+
+    # вписываем
+    merge_cells_of_support(cur_row, support)
+    write_supports(cur_row, support)
+    mergeCellsPr(cur_row, support.span1)
+
+    cur_row = write_spans2(cur_row, support.span1)
+    if support.span2:
+        mergeCellsPr(cur_row + 1, support.span2)
+        cur_row = write_spans2(cur_row + 1, support.span2)
+    cur_row += 1
+
+for col in range(27):
+    cell_border(cur_row, col + 1, top_border)
+
+workbook.save(full_filename)
+print('обработан файл', full_filename)
