@@ -2,107 +2,50 @@ import re
 
 
 class LineLevel:
-    """Ярус ЛЭП с параметрами проводов"""
+    """Ярус ЛЭП с параметрами проводов. MPiN - запись типа А-2x16 (марка провода, количество проводов и их сечение)"""
 
-    def __init__(self, MPiN, level_height=7.5):
-        self.MPiN = MPiN
-        self.number = 0
-        self.weight = 0
-        self.diameter = 0
+    reference_data = {
+        'А-16': [5.1, 43, 6.2, 3.15],
+        'А-25': [6.4, 68, 6.31, 3.2],
+        'А-35': [7.5, 94, 6.46, 3.28],
+        'А-50': [9, 135, 6.66, 3.38],
+        'СІП-2x25': [17.5, 215, 6.69, 3.48],
+        'СІП-4x25': [21.1, 403, 7.48, 4.1],
+        'СІП-4x35': [24, 511, 7.54, 4.22],
+        'СІП-2x16': [12.2, 91, 6.4, 3.29],
+        'СІП-4x16': [14.7, 183, 6.5, 3.35],
+        'СІП-4x50': [29, 711, 7.62, 4.45],
+        'СІП-4x70': [32, 983, 7.74, 4.58],
+        'СІП-4x95': [37, 1334, 8.66, 5.51],
+        'ОКСН': [8.4, 40, 5.84, 2.75]
+    }
+
+    def __init__(self, MPiN, level_height=7.5):  # MPiN='А-2x16'
         self.level_height = level_height
+        self.MPiN = MPiN
+        self.diameter = 0
+        self.weight = 0
         self.k1 = 0
         self.k2 = 0
-        self.wires_amount = 0
-        self.wire_mark = ''
 
-        result = re.findall(r'\w+', self.MPiN)
-        if result[0] == 'А':
-            result2 = re.findall(r'\d+', result[1])
-            self.wires_amount = int(result2[0])
-            self.wire_mark = result[0] + '-' + result2[1]
+        if self.MPiN[0] == 'А':
+            decomposition1 = re.findall(r'\w+', self.MPiN)  # ['А', '2x16']
+            decomposition2 = re.findall(r'\d+', decomposition1[1])  # ['2', '16']
+            self.number_of_wires = int(decomposition2[0])
+            self.wire_mark = decomposition1[0] + '-' + decomposition2[1]
         else:
-            self.wires_amount = 1
+            self.number_of_wires = 1
             self.wire_mark = self.MPiN
 
-        if self.wire_mark == 'А-16':
-            self.diameter = 5.1
-            self.weight = 43
-            self.k1 = 6.2
-            self.k2 = 3.15
+        self.calculate_parameters(self.wire_mark)
 
-        if self.wire_mark == 'А-25':
-            self.diameter = 6.4
-            self.weight = 68
-            self.k1 = 6.31
-            self.k2 = 3.2
-
-        if self.wire_mark == 'А-35':
-            self.diameter = 7.5
-            self.weight = 94
-            self.k1 = 6.46
-            self.k2 = 3.28
-
-        if self.wire_mark == 'А-50':
-            self.diameter = 9
-            self.weight = 135
-            self.k1 = 6.66
-            self.k2 = 3.38
-
-        if self.wire_mark == 'СІП-2x25':
-            self.diameter = 17.5
-            self.weight = 215
-            self.k1 = 6.69
-            self.k2 = 3.48
-
-        if self.wire_mark == 'СІП-4x25':
-            self.diameter = 21.1
-            self.weight = 403
-            self.k1 = 7.48
-            self.k2 = 4.1
-
-        if self.wire_mark == 'СІП-4x35':
-            self.diameter = 24
-            self.weight = 511
-            self.k1 = 7.54
-            self.k2 = 4.22
-
-        if self.wire_mark == 'СІП-2x16':
-            self.diameter = 12.2
-            self.weight = 91
-            self.k1 = 6.4
-            self.k2 = 3.29
-
-        if self.wire_mark == 'СІП-4x16':
-            self.diameter = 14.7
-            self.weight = 183
-            self.k1 = 6.5
-            self.k2 = 3.35
-
-        if self.wire_mark == 'СІП-4x50':
-            self.diameter = 29
-            self.weight = 711
-            self.k1 = 7.62
-            self.k2 = 4.45
-
-        if self.wire_mark == 'СІП-4x70':
-            self.diameter = 32
-            self.weight = 983
-            self.k1 = 7.74
-            self.k2 = 4.58
-
-        if self.wire_mark == 'СІП-4x95':
-            self.diameter = 37
-            self.weight = 1334
-            self.k1 = 8.66
-            self.k2 = 5.51
-
-        if self.wire_mark == 'ОКСН':
-            self.diameter = 8.4
-            self.weight = 40
-            self.k1 = 5.84
-            self.k2 = 2.75
+    def calculate_parameters(self, wire_mark):
+        if wire_mark in self.reference_data.keys():
+            self.diameter = self.reference_data[wire_mark][0]
+            self.weight = self.reference_data[wire_mark][1]
+            self.k1 = self.reference_data[wire_mark][2]
+            self.k2 = self.reference_data[wire_mark][3]
+        else:
+            print('не могу определить марку провода', wire_mark)
+        if wire_mark == 'ОКСН':
             self.level_height = 5.9
-            self.number = 1
-
-        if self.k1 == 0:
-            print('не могу определить марку провода', self.MPiN)

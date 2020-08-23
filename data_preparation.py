@@ -1,92 +1,73 @@
 import re
 
 
-def run(fn, wb):
-    ws = wb.active
-    sup1_sup2 = []
-    col_C = ws['C']
-    col_H = ws['H']
-    col_I = ws['I']
+def run(filename, workbook):
+    worksheet = workbook.active
+    col_C = worksheet['C']  # опоры пролётов '1 - 2'
+    col_H = worksheet['H']  # опоры для расчёта (на которых подвес ОКСН)
+    col_I = worksheet['I']  # опоры, на которых фонарка
 
-    def formattedList(unformatted_list):
-        formatted_list = []
-        for item in unformatted_list:
-            if item.value:
-                formatted_list.append(item)
-        return formatted_list
-
-    target_support = formattedList(col_H)
-    target_lamp = formattedList(col_I)
+    supports_for_calc = list(item.value for item in col_H if item.value)  # очищаем от пустых ячеек
+    supports_with_lamp = list(item.value for item in col_I if item.value)  # очищаем от пустых ячеек
 
     def cellValue(target_row, target_col):
-        return ws.cell(row=target_row, column=target_col).value
+        return worksheet.cell(row=target_row, column=target_col).value
 
-    def check(sup1sup2, targetCol):
+    def supports_list(span): # span = '33 - 45' => ['33', '45']
+        return re.findall(r'\d+', span)
 
-        if sup1sup2 is None:
+    def is_span_included_in_list(span, support_list):  # span = '33 - 45'
+        span_support_numbers = supports_list(span) # ['33', '45']
+        if len(span_support_numbers) == 0:
             return False
-        if sup1sup2 == 'Номер пролёта':
-            return True
-        mFormat = re.findall(r'\d+', sup1sup2)
-        flag = False
-        if len(mFormat) == 1:
-            return False
-        if mFormat:
-            sup1_sup2.append(mFormat)
-            a = 0
-            b = 0
-            for support in targetCol:
-                if support.value is None:
-                    continue
-                number = support.value
-                number1 = int(mFormat[0])
-                if number == number1:
-                    a = 1
-            for support in targetCol:
-                if support.value is None:
-                    continue
-                number = support.value
-                number1 = int(mFormat[1])
-                if number == number1:
-                    b = 1
-            if a == 1 and b == 1:
-                flag = True
-        return flag
+        if len(span_support_numbers) == 1:
+            number_of_sup = int(span_support_numbers[0])
+            if number_of_sup in support_list:
+                return True
+        if len(span_support_numbers) == 2:
+            number_of_sup1 = int(span_support_numbers[0])
+            number_of_sup2 = int(span_support_numbers[1])
+            if number_of_sup1 in support_list and number_of_sup2 in support_list:
+                return True
+        return False
 
-    quantity = len(col_C)
+    total_number_of_spans = len(col_C)
     table_old = []
-    table_new = []
-    for line in range(quantity + 1):
+    for line_number in range(total_number_of_spans):
         new_row = []
-        for col in range(5):
-            new_row.append(cellValue(line + 1, col + 1))
-        if check(cellValue(line + 1, 3), target_lamp) is True and \
-                cellValue(line + 1, 3) != 'Номер пролёта':
+        for col_number in range(5):
+            new_row.append(cellValue(line_number + 1, col_number + 1))
+        span = new_row[2]
+        if span != 'Номер прольоту':
+            if is_span_included_in_list(span, supports_with_lamp):
+                new_row.append('есть')
+        else:
             new_row.append('фонарка')
-
         table_old.append(new_row)
 
-    title = 'отформатированный'
-    my_ws = wb.create_sheet(title)
-    my_ws.title = title
-    cur_line = 1
+
+    table_new = []
     length = 0.0
-
     for line in table_old:
-        span_support_numbers = line[2]
-        if check(span_support_numbers, target_support) is True:
+        span = line[2]
+        if span == 'Номер прольоту':
             table_new.append(line)
-            if line[4] != 'Довжина прольоту, м':
-                length += float(line[4])
             print(line)
-            number_of_cols = len(line)
-            for col in range(number_of_cols):
-                my_ws.cell(row=cur_line, column=col + 1, value=line[col])
-                # print(cur_line, col + 1, line[col])
-            cur_line += 1
-    my_ws.cell(row=cur_line, column=5, value=round(length, 1))
-    print('Общая длина -', round(length, 1))
-    print('Количество опор -', len(target_support))
+            continue
+        if is_span_included_in_list(span, supports_for_calc):
+            table_new.append(line)
+            length += float(line[4])
+            print(line)
 
-    wb.save(fn)
+    # title = 'отформатированный'
+    new_worksheet = workbook.create_sheet('отформатированный', 0)
+    for line_number in range(len(table_new)):
+        for col_number in range(len(table_new[line_number])):
+            new_worksheet.cell(row=line_number + 1, column=col_number + 1, value=table_new[line_number][col_number])
+
+    new_worksheet.cell(row=line_number + 2, column=5, value=round(length, 1))
+    print('Общая длина -', round(length, 1))
+    print('Количество опор -', len(supports_for_calc))
+
+    workbook.save(filename)
     print('записали отформатированную книгу')

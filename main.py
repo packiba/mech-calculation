@@ -1,7 +1,6 @@
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, Color
 from openpyxl.styles.borders import Border, Side
-import numpy as np
 import re
 from data_preparation import run
 from span import Span
@@ -72,8 +71,8 @@ list_of_marks = []
 list_of_length = []
 list_of_lamps = []
 for i in range(0, number_of_spans):
-    d = formatted_sheet.cell(row=i + 1, column=4)
-    e = formatted_sheet.cell(row=i + 1, column=5)
+    d = formatted_sheet.cell(row=i + 2, column=4)
+    e = formatted_sheet.cell(row=i + 2, column=5)
     font_big = formatted_sheet.cell(row=i + 2, column=6)
     list_of_marks.append(d.value)
     list_of_length.append(round(e.value))
@@ -203,7 +202,7 @@ def write_line_levels(row, line_level):
     set_cell_height(row, 9)
     my_ws.cell(row=row, column=3, value=line_level.wire_mark).alignment = alignment
     my_ws.cell(row=row, column=3).font = font_small
-    my_ws.cell(row=row, column=4, value=line_level.wires_amount).alignment = alignment
+    my_ws.cell(row=row, column=4, value=line_level.number_of_wires).alignment = alignment
     my_ws.cell(row=row, column=4).font = font_small
     my_ws.cell(row=row, column=5, value=line_level.diameter).alignment = alignment
     my_ws.cell(row=row, column=5).font = font_small
@@ -240,9 +239,9 @@ def write_spans(row, span):
 def write_supports(row, support):
     my_ws.cell(row=row, column=1, value=support.number).alignment = alignment
     my_ws.cell(row=row, column=1).font = font_big
-    my_ws.cell(row=row, column=8, value=support.lampsAmount).alignment = alignment
+    my_ws.cell(row=row, column=8, value=support.number_of_lamps).alignment = alignment
     my_ws.cell(row=row, column=8).font = font_big
-    my_ws.cell(row=row, column=9, value=support.lampHeight).alignment = alignment
+    my_ws.cell(row=row, column=9, value=support.lamp_height).alignment = alignment
     my_ws.cell(row=row, column=9).font = font_big
     my_ws.cell(row=row, column=14, value=support.Wm).alignment = alignment
     my_ws.cell(row=row, column=14).font = font_big
@@ -292,9 +291,10 @@ def write_spans2(row, span):
 
 
 # создаем лист в Excel
-title = 'КТП-' + str(ST_number) + ' Л' + str(line_number)
+title = 'ТП-' + str(ST_number) + ' Л' + str(line_number)
 my_ws = workbook.create_sheet("расчёт", 0)
-file_name = title + '.xlsx'
+# new_filename = title + '.xlsx'
+new_filename = '{} - расчёт.xlsx'.format(title)
 
 # наши стили выравнивания и шрифт ячеек
 alignment = Alignment(horizontal="center", vertical="center")
@@ -349,5 +349,5 @@ for support in supports:
 for col in range(27):
     cell_border(cur_row, col + 1, top_border)
 
-workbook.save(full_filename)
+workbook.save(new_filename)
 print('обработан файл', full_filename)
