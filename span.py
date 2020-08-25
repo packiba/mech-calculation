@@ -1,6 +1,7 @@
 from linelevel import LineLevel
 from math import log
 from math import sqrt
+import numpy as np
 
 
 class Span:
@@ -12,13 +13,13 @@ class Span:
         self.span_support2_number = span_support_numbers[1]
         self.length = length
         self.lamp = lamp
-        self.M12 = []
-        self.M13 = []
-        self.M134 = []
-        self.Gc = []
-        self.Pm = []
-        self.Gmp = []
-        self.Qm = []
+        self.M12 = np.array([], float)
+        self.M13 = np.array([], float)
+        self.M134 = np.array([], float)
+        self.Gc = np.array([], float)
+        self.Pm = np.array([], float)
+        self.Gmp = np.array([], float)
+        self.Qm = np.array([], float)
         self.linelevels = [] # список объектов ярусов
 
         self.linelevels.append(LineLevel('ОКСН', 5.9))
@@ -35,10 +36,10 @@ class Span:
         f3 = round(self.length * linelevel.number_of_wires * linelevel.k1, 1)
         f4 = round(self.length * linelevel.number_of_wires * linelevel.k2, 1)
 
-        self.M12.append(round(sqrt(f1 ** 2 + f2 ** 2) * linelevel.level_height))
-        self.M13.append(round((f1 + f3) * linelevel.level_height))
-        self.M134.append(round(sqrt((f1 + f3) ** 2 + f4 ** 2) * linelevel.level_height))
-        self.Gc.append(f1)
-        self.Pm.append(f2)
-        self.Gmp.append(f3)
-        self.Qm.append(f4)
+        self.M12 = np.append(self.M12, round(sqrt(f1 ** 2 + f2 ** 2) * linelevel.level_height))
+        self.M13 = np.append(self.M13, round((f1 + f3) * linelevel.level_height))
+        self.M134 = np.append(self.M134, round(sqrt((f1 + f3) ** 2 + f4 ** 2) * linelevel.level_height))
+        self.Gc = np.append(self.Gc, f1)
+        self.Pm = np.append(self.Pm, f2)
+        self.Gmp = np.append(self.Gmp, f3)
+        self.Qm = np.append(self.Qm, f4)

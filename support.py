@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class Support:
     """Опора ЛЭП со всеми свойствами"""
 
@@ -14,10 +17,10 @@ class Support:
         self.span2 = span2  # объект пролёта
         self.number_of_lamps = 0
         self.lamp_height = 0
-        self.maxMoments = []
-        self.m1 = []
-        self.m2 = []
-        self.m3 = []
+        self.maxMoments = np.array([], float)
+        self.m1 = np.array([], float)
+        self.m2 = np.array([], float)
+        self.m3 = np.array([], float)
         self.maxMoment = 0
 
         if self.span1.lamp:
@@ -44,10 +47,10 @@ class Support:
             m3 = round(0.9 * (sumM3 + self.MWg))
             sumMoments_row = [m1, m2, m3]
             maxMpr = max(sumMoments_row)
-            self.maxMoments.append(maxMpr)
-            self.m1.append(m1)
-            self.m2.append(m2)
-            self.m3.append(m3)
+            self.maxMoments = np.append(self.maxMoments, maxMpr)
+            self.m1 = np.append(self.m1, m1)
+            self.m2 = np.append(self.m2, m2)
+            self.m3 = np.append(self.m3, m3)
         if (len(self.maxMoments)) < 2:
             self.maxMoment = self.maxMoments[0]
         else:
