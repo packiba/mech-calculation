@@ -19,7 +19,6 @@ class InitialData:
         self.read_data_from_file()
         self.initial_data_table = self.clean_unnecessary_data(self.make_table())
         self.list_of_span_support_numbers = []
-        self.list_of_supports = []
         self.end_supports_list = []
         self.list_of_marks = []
         self.list_of_length = []
@@ -50,7 +49,7 @@ class InitialData:
         span_support_numbers = self.supports_list(span)  # ['33', '45']
         if len(span_support_numbers) == 0:
             return False
-        if len(span_support_numbers) == 1:
+        if len(span_support_numbers) == 1 and span[:2] != 'ТП':
             number_of_sup = int(span_support_numbers[0])
             if number_of_sup in support_list:
                 return True
@@ -63,12 +62,12 @@ class InitialData:
 
     def read_data_from_file(self):
         # открываем файл и берем текущий лист
-        full_filename = self.filename + '.xlsx'
-        self.workbook = load_workbook(full_filename)
+        # full_filename = self.filename + '.xlsx'
+        self.workbook = load_workbook(self.filename)
         self.worksheet = self.workbook.active
 
         # номер КТП (ST - substation transformer)
-        self.ST_number = int(re.findall(r'\d+', self.worksheet['A2'].value)[0])
+        self.ST_number = int(re.findall(r'\d+', self.worksheet['A2'].value)[-1])
         # номер линии
         self.feeder_number = int(re.findall(r'\d+', self.worksheet['B2'].value)[0])
 
@@ -102,7 +101,7 @@ class InitialData:
             span = line[0]
             if self.is_span_included_in_list(span, self.supports_for_calc):
                 new_table.append(line)
-                self.length += float(line[2])
+                self.length += round(float(line[2]), 2)
                 print(line)
         return new_table
 
